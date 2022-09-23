@@ -13,15 +13,18 @@ input <- function(input_str) {
 
 #print output at the start of each loop
 print_round_info <- function(round_num, board) {
-  cat("########################\n")
-  cat("###### Round #", round_counter, " ######\n")
-  cat("########################\n")
+  
+  
+  cat("\n########################\n")
+  cat("\n###### Round #", round_counter, " ######\n")
+  cat("\n########################\n")
   Sys.sleep(1)
-  cat("Current board: \n")
-  cat("~~~~~~~~~~~~~~~~~~~\n")
+  cat("\nCurrent board: \n")
+  cat("\n~~~~~~~~~~~~~~~~~~~\n")
   print(board)
   cat("~~~~~~~~~~~~~~~~~~~\n")
   Sys.sleep(1)
+  
 }
 
 #computer move - just picks randomly from available places
@@ -32,10 +35,11 @@ computer_move <- function(symbol, board) {
   while (is.na(board[pos]) == FALSE) {
     pos <- sample(spaces_free, 1) 
   }
+  
   board[pos] <- symbol
   
-  cat('Computer move registered \n')
-  cat("~~~~~~~~~~~~~~~~~~~\n")
+  cat('\n Computer move registered \n')
+  cat("\n~~~~~~~~~~~~~~~~~~~\n")
   print(board)
   cat("~~~~~~~~~~~~~~~~~~~\n")
   Sys.sleep(1)
@@ -46,10 +50,14 @@ computer_move <- function(symbol, board) {
 
 #user move 
 user_move <- function(symbol, board) {
+  
+  cat("\nPlayer ")
+  cat(symbol)
+  cat(" turn: \n")
   confirm = FALSE
   while (confirm == FALSE) {
-    row <- input("What row?")
-    col <- input("What column?")
+    row <- input("What row? ")
+    col <- input("What column? ")
     
     int_row <- as.integer(row)
     int_col <- as.integer(col)
@@ -61,7 +69,7 @@ user_move <- function(symbol, board) {
       next
     }
     
-    confirm_str <- input("Confirm placement? [y/n]")
+    confirm_str <- input("Confirm placement? [y/n] ")
 
     
     if (confirm_str == 'y') {
@@ -85,7 +93,7 @@ user_move <- function(symbol, board) {
   board[int_row, int_col] <- symbol
   
   cat('Move placed! \n')
-  cat("~~~~~~~~~~~~~~~~~~~\n")
+  cat("\n~~~~~~~~~~~~~~~~~~~\n")
   print(board)
   cat("~~~~~~~~~~~~~~~~~~~\n")
   Sys.sleep(1)
@@ -101,24 +109,29 @@ check_win <- function(board, symbol_vector) {
   for (r in 1:3) {
     if (setequal(board[r,], symbol_vector) | setequal(board[,r], symbol_vector)) {
       win <- 1
+      return(win)
     }
   }
 
   #check diagonal
   diagonal_1 = c(board[1,1], board[2,2], board[3,3])
   diagonal_2 = c(board[1,3], board[2,2], board[3,1])
+  
   if (setequal(diagonal_1, symbol_vector) | setequal(diagonal_2, symbol_vector)) {
     win = 1
+    return(win)
   }
   
   if (win == 1 && setequal(c('O', 'O', 'O'), symbol_vector)) {
     win <- 2
+    return(win)
   }
   
   #check for stalemate
   spaces_free <- which(is.na(board))
   if (any(spaces_free) == FALSE) {
       win <- 3
+      return(win)
 
   }
   
@@ -137,7 +150,7 @@ player_symbol <- input("X or O? ")
 while (player_symbol != 'X' & player_symbol != 'O') {
   cat("Wrong input! Please choose X or O")
   Sys.sleep(1)
-  player_symbol <- input()
+  player_symbol <- input(' ')
 
 }
 
@@ -153,7 +166,7 @@ round_counter <- 1
 
 while (game_fin == 0) {
   print_round_info(round_counter, board)
-  cat("Player 'X' turn: \n")
+  
   Sys.sleep(1)
   if (comp_symbol == 'X') {
     board <- computer_move(comp_symbol, board)
