@@ -30,18 +30,18 @@ print_round_info <- function(round_num, board) {
   print_board(board)
 }
 
-#added function for readability
+# added function for readability
 is_space_free <- function(board, pos) {
   return(is.na(board[pos]))
 }
 
-#return winning move position
+# return winning move position
 check_for_winning_move <- function(symbol, board) {
   for (i in 1:9) {
-    if(is_space_free(board, i)) {
+    if (is_space_free(board, i)) {
       board_dup <- board
       board_dup[i] <- symbol
-      if(check_win(board_dup, symbol) == 1) {
+      if (check_win(board_dup, symbol) == 1) {
         return(i)
       }
     }
@@ -52,23 +52,22 @@ check_for_winning_move <- function(symbol, board) {
 # computer move - slightly smarter than random implementation
 
 computer_move <- function(comp_symbol, player_symbol, board) {
-  
   cat("\nPlayer ", comp_symbol, "turn: \n")
-  
-  #check if the computer can win with this move
+
+  # check if the computer can win with this move
   move <- check_for_winning_move(comp_symbol, board)
-  
-  #check if player could win next move, and prevent
+
+  # check if player could win next move, and prevent
   if (move == -1) {
     move <- check_for_winning_move(player_symbol, board)
   }
-  
-  #otherwise, move randomly
+
+  # otherwise, move randomly
   if (move == -1) {
     spaces_free <- which(is.na(board))
     move <- sample(spaces_free, 1)
 
-    #double assurance we're not overwriting anything
+    # double assurance we're not overwriting anything
     while (is.na(board[move]) == FALSE) {
       move <- sample(spaces_free, 1)
     }
@@ -84,9 +83,8 @@ computer_move <- function(comp_symbol, player_symbol, board) {
 
 # user move
 user_move <- function(symbol, board) {
-  
   cat("\nPlayer ", symbol, "turn: \n")
-  
+
   confirm <- FALSE
   while (confirm == FALSE) {
     row <- input("What row? ")
@@ -129,7 +127,6 @@ user_move <- function(symbol, board) {
 
 # check all the win states
 check_win <- function(board, symbol) {
-  
   symbol_vector <- c(symbol, symbol, symbol)
   win <- 0
   # check row & col win condition (works because 3 by 3)
@@ -146,7 +143,7 @@ check_win <- function(board, symbol) {
   if (setequal(diagonal_1, symbol_vector) | setequal(diagonal_2, symbol_vector)) {
     win <- 1
   }
-  
+
   if (win != 1) {
     # check for stalemate
     spaces_free <- which(is.na(board))
@@ -158,35 +155,33 @@ check_win <- function(board, symbol) {
   return(win)
 }
 
-#assigning the comp and player symbols
+# assigning the comp and player symbols
 get_player_symbol <- function() {
-  
+
   # assigning player symbol
   player_symbol <- input("X or O? ")
-  
+
   # checking input
   while (!(player_symbol %in% c("X", "O"))) {
     cat("Wrong input! Please choose X or O\n")
     Sys.sleep(1)
     player_symbol <- input(" ")
   }
-  
-  #first letter in list is player, next is comp
+
+  # first letter in list is player, next is comp
   if (player_symbol == "X") {
-    return (c("X", "O"))
+    return(c("X", "O"))
   } else {
-    return (c("O", "X"))
+    return(c("O", "X"))
   }
-  
 }
 
 # who is going first?
 first_turn_order <- function(player_symbol) {
-  if (player_symbol == 'X') {
-    return ("Player")
-  }
-  else {
-    return ("Computer")
+  if (player_symbol == "X") {
+    return("Player")
+  } else {
+    return("Computer")
   }
 }
 
@@ -203,7 +198,7 @@ print_winner <- function(symbol) {
 # creating the board
 board <- matrix(data = NA, nrow = 3, ncol = 3)
 
-list[player_symbol, comp_symbol] = get_player_symbol()
+list[player_symbol, comp_symbol] <- get_player_symbol()
 
 # game loop
 game_fin <- 0 # 0 is no win yet, 1 is win, 2 is stalemate
@@ -211,13 +206,13 @@ round_counter <- 2
 turn <- first_turn_order(player_symbol)
 
 while (game_fin == 0) {
-  
-  #as game loops every turn, we only want to print this every second turn
+
+  # as game loops every turn, we only want to print this every second turn
   if ((round_counter %% 2) == 0) {
-    print_round_info((round_counter/2), board)
+    print_round_info((round_counter / 2), board)
   }
-  
-  #if it's the computer's turn
+
+  # if it's the computer's turn
   if (turn == "Computer") {
     board <- computer_move(comp_symbol, player_symbol, board)
     game_fin <- check_win(board, comp_symbol)
@@ -227,7 +222,7 @@ while (game_fin == 0) {
     }
     turn <- "Player"
   } else {
-    #if it's the player's turn
+    # if it's the player's turn
     board <- user_move(player_symbol, board)
     game_fin <- check_win(board, player_symbol)
     if (game_fin != 0) {
@@ -236,8 +231,6 @@ while (game_fin == 0) {
     }
     turn <- "Computer"
   }
-  
-  round_counter <- round_counter + 1
- 
-}
 
+  round_counter <- round_counter + 1
+}
