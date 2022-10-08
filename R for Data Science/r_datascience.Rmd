@@ -4,6 +4,7 @@ author: "Yve Nichols-Evans"
 date: "`r Sys.Date()`"
 output: 
   html_document:
+    code_folding: hide
     toc: true
     toc_float:
       collapsed: false
@@ -13,7 +14,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = 'center', out.width = '95%')
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align = "center", out.width = "95%")
 ```
 
 ```{r code_setup, include=FALSE}
@@ -21,10 +22,8 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.align =
 library(tidyverse)
 library(plotly)
 library("report")
-
+library(DT)
 ```
-
-__Note: I've left in the code chunks to aid in easy marking, sorry if we were supposed to hide them!__
 
 ### Question 1. Read_CSV
 
@@ -51,42 +50,54 @@ __Filter the data to include only rows where `Year` is `1962` and then make a sc
 
 Now it's time to make our first scatter plot! We start by just making a standard scatter plot as seen below.
 
-```{r gapminder_1962_with_outlier}
+```{r gapminder_1962_init}
 
 gapminder %>%
   filter(Year == 1962) %>%
   ggplot(aes(x = co2, y = gdpPercap)) +
   geom_point(color = "lightcoral") +
-  labs(x = "CO2 emissions (metric tons per capita)", y = "GDP (per capita)",
-       title = "GDP vs CO2 emissions (with outlier)") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
-
+  labs(
+    x = "CO2 emissions (metric tons per capita)", y = "GDP (per capita)",
+    title = "GDP vs CO2 emissions (linear scale)"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 ```
 
-But this graph looks a little off scale. Upon closer inspection, we can see this is because there's one datapoint way off in the distance that's forcing the graph to adjust its scale to accommodate for it. We'll assume this is an outlier, and filter it out of the dataset. We'll also add in a line of best fit to get a sense of the correlation between data to prepare for the next question. 
+But this graph looks a little off scale. Upon closer inspection, we can see this is because there's one datapoint much larger than the majority of the points that's forcing the graph to adjust its scale to accommodate for it. Given that it's hard to visualise the smaller, more grouped datapoints on the graph given this point, we'll try graphing this relationship on a log scale. We'll also add in a line of best fit to get a sense of the correlation between data to prepare for the next question. 
 
-```{r gapminder_1962_no_outlier}
+```{r gapminder_1962_log}
 
-#getting rid of the outlier
+# transforming the data to a log scale
 gapminder_1962 <- gapminder %>%
-  filter(Year == 1962 &  co2 < 20)
+  filter(Year == 1962) %>%
+  mutate(log_co2 = log(co2)) %>%
+  mutate(log_gdp = log(gdpPercap))
 
 gapminder_1962_plot <- gapminder_1962 %>%
-  ggplot(aes(x = co2, y = gdpPercap)) +
-  geom_point(color = "lightcoral") + 
+  ggplot(aes(x = log_co2, y = log_gdp)) +
+  geom_point(color = "lightcoral") +
   geom_smooth(method = "lm", se = FALSE, color = "grey0") +
-  labs(x = "CO2 emissions (metric tons per capita)", y = "GDP (per capita)",
-       title = "GDP vs CO2 emissions") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+  labs(
+    x = "Log of CO2 emissions (metric tons per capita)", y = "Log of GDP ( per capita)",
+    title = "GDP vs CO2 emissions (log scale)"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
 ggplotly(gapminder_1962_plot)
-
 ```
 
 Much better! 
@@ -94,7 +105,9 @@ Much better!
 ### Question 3. Correlation 
 __On the filtered data, calculate the correlation of `'CO2 emissions (metric tons per capita)'` and `gdpPercap`. What is the correlation and associated p value?__
 
-We now want to calculate the correlation between these two factors. Correlation essentially shows the strength of a relationship between two variables - a positive correlation score means that as one increases, so does the other - while a negative score means that as one variable increases, the other decreases. Based on the line of best fit in the previous graph, I'm assuming we have a positive correlation. But to be sure, we'll run a test!
+We now want to calculate the correlation between these two factors. Correlation essentially shows the strength of a relationship between two variables - a positive correlation score means that as one increases, so does the other - while a negative score means that as one variable increases, the other decreases. Based on the line of best fit in the previous graph, I'm assuming we have a positive correlation. But to be sure, we'll run a test! 
+
+Note: throughout this analysis the correlation test we'll use is 'Pearson's correlation'. This is because the relationships we are analyzing seem to be linear (as demonstrated in the scatter plot). Whilst we could choose to use Spearman/Kendall's correlation (as the relationships seem to also be monotonic) we prefer to use parametric correlations when possible, as they can make use of more information in calculations (eg. mean).
 
 ```{r gapminder_1962_cor_score}
 
@@ -105,7 +118,6 @@ cor_1962 <- gapminder_1962 %>%
 cor_1962_p <- gapminder_1962 %>%
   with(cor.test(co2, gdpPercap, use = "complete.obs")$p.value) %>%
   format(digits = 3)
-
 ```
   
 The correlation score we got for this relationship is __`r cor_1962`__ which is a fairly strong positive correlation. 
@@ -120,29 +132,34 @@ To answer this question, we want to map the correlation scores across all the ye
 
 ```{r gapminder_co2_gdp_strongest}
 
-#making the correlation tibble
+# making the correlation tibble
 gapminder_cor <- gapminder %>%
-  group_by(Year)  %>%
+  group_by(Year) %>%
   summarise(cor = cor(co2, gdpPercap, use = "complete.obs"))
 
-#plotting them
+# plotting them
 gapminder_cor_plot <- gapminder_cor %>%
-  ggplot(aes(x = Year, y = cor)) + 
-  geom_line(color = "lightcoral") + 
-  labs(x = "Year", y = "Correlation",
-       title = "Correlation between CO2 emissions and GDP vs Year") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+  ggplot(aes(x = Year, y = cor)) +
+  geom_line(color = "lightcoral") +
+  labs(
+    x = "Year", y = "Correlation",
+    title = "Correlation between CO2 emissions and GDP vs Year"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
 ggplotly(gapminder_cor_plot)
 
-#year with highest correlation score
+# year with highest correlation score
 max_cor_year <- gapminder_cor %>%
   filter(cor == max(cor)) %>%
   pull(Year)
-
 ```
 
 From this graph we can see the year where correlation was strongest was  __`r max_cor_year`__!
@@ -151,25 +168,32 @@ From this graph we can see the year where correlation was strongest was  __`r ma
 ### Question 5. Interactive Plot
 __Using `plotly`, create an interactive scatter plot comparing `'CO2 emissions (metric tons per capita)'` and `gdpPercap`, where the point size is determined by `pop` (population) and the color is determined by the `continent`.__
 
-Time to make another interactive scatter plot as specified above!
+Time to make another interactive scatter plot as specified above! We'll use a log graph to visualise the data - as a linear graph makes it harder to visualise the more grouped datapoints on the graph.
 
 ```{r gapminder_year_highest_corr}
 
 gapminder_year_highest_corr <- gapminder %>%
   filter(Year == max_cor_year) %>%
-  ggplot(aes(x = co2, y = gdpPercap, color = continent, size = pop)) +
-  geom_point() + 
-  labs(x = "CO2 emissions (metric tons per capita)", y = "GDP (per capita)",
-       title = "Year vs CO2 emissions") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
-  
+  mutate(log_co2 = log(co2)) %>%
+  mutate(log_gdp = log(gdpPercap)) %>%
+  ggplot(aes(x = log_co2, y = log_gdp, color = continent, size = pop)) +
+  geom_point() +
+  labs(
+    x = "Log of CO2 emissions (metric tons per capita)", y = "Log of GDP (per capita)",
+    title = "Year vs CO2 emissions"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
+
 gapminder_year_highest_corr_plot <- ggplotly(gapminder_year_highest_corr)
 
-gapminder_year_highest_corr_plot %>% layout(legend=list(title=list(text='Continent Population ')))
-
+gapminder_year_highest_corr_plot %>% layout(legend = list(title = list(text = "Continent Population ")))
 ```
 
 ### Question 6. Relationship between Continent / Energy
@@ -180,67 +204,94 @@ The first place to start when exploring relationships between 2 variables in a d
 ```{r gapminder_continent_energy}
 gapminder_cont_energy <- gapminder %>%
   ggplot(mapping = aes(x = continent, y = energy)) +
-  geom_boxplot(fill = "lightcoral") + 
-  labs(x = "Continent", y = "Energy use (kg of oil equivalent per capita)",
-       title = "Energy use vs Continent") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+  geom_boxplot(fill = "lightcoral") +
+  labs(
+    x = "Continent", y = "Energy use (kg of oil equivalent per capita)",
+    title = "Energy use vs Continent"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
 ggplotly(gapminder_cont_energy)
 ```
 
-These graphs show a couple of things. First, there's a bunch of energy results that have no continent attached, and second there seems be have a bunch of outliers - particularly over energy use 8000. This makes sense - as some continents have some very rich countries among a poor majority - for example Signapore in Asia, who you'd expect to use more power. We do want to get rid of some of these outliers though, so we an get the general trend among continents and gain more information from the graph. We'll run this plot again, but with less outliers, and getting rid of the energy use that have no attached continent. 
+These graphs show a couple of things. First, there's a bunch of energy results that have no continent attached, and second there seems be have a high scores which are dominating the smaller, grouped data points - particularly over energy use 8000. This makes sense - as some continents have some very rich countries among a poor majority - for example Signapore in Asia, who you'd expect to use more power. We do want to visualise all the datapoints more easily however, so we an get the general trend among continents and gain more information from the graph. We'll run this plot again, but with a log scale on energy use, and getting rid of the energy use that have no attached continent. 
 
-```{r gapminder_continent_energy_no_out}
+```{r gapminder_continent_energy_log}
 
-gapminder_cont_energy_no_out <- gapminder %>%
-  filter(!is.na(continent) & energy <= 8000)
+gapminder_cont_energy_log <- gapminder %>%
+  filter(!is.na(continent)) %>%
+  mutate(log_energy = log(energy))
 
-gapminder_cont_energy_no_out_plot <- gapminder_cont_energy_no_out %>%
-  ggplot(mapping = aes(x = continent, y = energy)) +
-  geom_boxplot(fill = "lightcoral") + 
-  labs(x = "Continent", y = "Energy use (kg of oil equivalent per capita)",
-       title = "Energy use vs Continent (less outliers)") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+gapminder_cont_energy_log_plot <- gapminder_cont_energy_log %>%
+  ggplot(mapping = aes(x = continent, y = log_energy)) +
+  geom_boxplot(fill = "lightcoral") +
+  labs(
+    x = "Continent", y = "Log of Energy use (kg of oil equivalent per capita)",
+    title = "Energy use vs Continent (Log Scale)"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
-ggplotly(gapminder_cont_energy_no_out_plot)
+ggplotly(gapminder_cont_energy_log_plot)
 ```
 
 Based on this visual, it seems like the continent does have some influence on the energy use per capita. In particular, looks like Oceania generally has the highest energy use distribution per capita.
-But we need to use a statistical test to be sure! The country is out predictor variable - as this is the variable that influences the result, and the energy use is our outcome variable, as this is what we measure to determine the relationship. Given we have a categorical predictor variable, and a quantitative outcome variable, and we're comparing multiple groups (countries) with only one outcome variable (how much energy) - we'll choose an ANOVA statistical test. The ANOVA test determines is there's a statistically significant difference between catagorical groups - so it'll help us determine if there is a relationship between contient and energy use per capita. 
+But we need to use a statistical test to be sure! The country is out predictor variable - as this is the variable that influences the result, and the energy use is our outcome variable, as this is what we measure to determine the relationship. Given we have a categorical predictor variable, and a quantitative outcome variable, and we're comparing multiple groups (countries) with only one outcome variable (how much energy) - we'll have to choose between an ANOVA test and a Kruskal-Wallis test. ANOVA needs a normal distribution, so let's visualise it!  
 
-```{r gapminder_continent_energy_anova, message = TRUE}
-continent_energy_aov <- aov(energy ~ continent, data = gapminder_cont_energy_no_out)
-summary(continent_energy_aov)
-anova_p <- format(summary(continent_energy_aov)[[1]][["Pr(>F)"]][1], digits = 3)
-```
-This test tells us there's a significant correlation between the continent and energy use per capita, with a p-value of __`r anova_p`__!
-
-To see if we can get anymore insights about the nature of this relationship - lets observe the shape of the distribution for each of the continents.
+We'll also run a Shapiro-Wilk test to give us a statistical confirmation of whether the distribution is normal, if the p value is less than 0.05 - it means its not normal.
 
 ```{r gapminder_continent_energy_no_out_shape}
-gapminder_cont_energy_shape <- gapminder_cont_energy_no_out %>%
+gapminder_cont_energy_shape <- gapminder_cont_energy_log %>%
   ggplot(mapping = aes(x = energy, fill = continent)) +
-  geom_density(alpha = .3) + 
-  labs(x = "Energy use (kg of oil equivalent per capita)",
-       title = "Shape of Energy Use across Continents") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+  geom_density(alpha = .3) +
+  labs(
+    x = "Energy use (kg of oil equivalent per capita)",
+    title = "Shape of Energy Use across Continents"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
 gapminder_cont_energy_shape_plot <- ggplotly(gapminder_cont_energy_shape)
 
-gapminder_cont_energy_shape_plot %>% layout(legend=list(title=list(text='Continents:')))
+gapminder_cont_energy_shape_plot %>% layout(legend = list(title = list(text = "Continents:")))
+
+shapiro_p <- format(shapiro.test(gapminder_cont_energy_log$energy)$p.value, digits = 3)
 ```
 
-This gives us some interesting new insights. Africa is very right skewed - meaning all of it's results are clustered around a low energy per capita. We can also see while the Americas are predominately dense in a low energy use section of the graph, they have a bump near the 8000s - which makes sense as the US presumably would use a lot of power per person. Oceania was more consistent, having less outliers in general and having its distribution centered. 
-This captures the notion that while Oceania would seem to be the continent with the highest energy use overall, other continents have a wide skew, with some counties being overall very low, but certain high energy use outliers that aren't captured in the data when looking on a continent level. 
+This gives us some interesting new insights. Africa is very right skewed - meaning all of it's results are clustered around a low energy per capita. We can also see while the Americas are predominately dense in a low energy use section of the graph, they have a bump near the 8000s - which makes sense as the US presumably would use a lot of power per person. Oceania was more consistent, having variance in general and having its distribution centered.
+
+This captures the notion that while Oceania would seem to be the continent with the highest energy use overall, other continents have a wide skew, with some counties being overall very low, but certain high energy use data points that aren't captured in the data when looking on a continent level. 
+
+Overall, we can assume that this distribution isn't normally distributed by looking at this graph and the p_value of the Shapiro result (__`r shapiro_p`__), and so will instead opt for the Kruskal-Wallis test.
+
+The Kruskal-Wallis test determines is there's a statistically significant difference between categorical groups - so it'll help us determine if there is a relationship between continent and energy use per capita. 
+
+```{r gapminder_continent_energy_test}
+
+continent_energy_kru <- kruskal.test(energy ~ continent, data = gapminder_cont_energy_log)
+kru_p <- format(continent_energy_kru$p.value, digits = 3)
+```
+Running this test tells us there's a significant correlation between the continent and energy use per capita, with a p-value of __`r kru_p`__!
+
 
 ### Question 7. Significant Difference
 __Is there a significant difference between Europe and Asia with respect to `'Imports of goods and services (% of GDP)'` in the years after 1990?__
@@ -248,17 +299,23 @@ __Is there a significant difference between Europe and Asia with respect to `'Im
 As before, because we have a categorical variable and a quantitative variable - we'll start with a boxplot. 
 
 ```{r gapminder_europe_asia}
-gapminder_europe_asia <- filter(gapminder, (continent == 'Europe' | continent == 'Asia') & Year > 1990)
+gapminder_europe_asia <- filter(gapminder, (continent == "Europe" | continent == "Asia") & Year > 1990)
 
 gapminder_europe_asia_plot <- gapminder_europe_asia %>%
   ggplot(mapping = aes(x = continent, y = import)) +
-  geom_boxplot(fill = "lightcoral") + 
-  labs(x = "Continent", y = "Imports of goods and services (% of GDP)",
-       title = "Imports of goods and services vs Continent") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+  geom_boxplot(fill = "lightcoral") +
+  labs(
+    x = "Continent", y = "Imports of goods and services (% of GDP)",
+    title = "Imports of goods and services vs Continent"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
 ggplotly(gapminder_europe_asia_plot)
 ```
@@ -267,101 +324,118 @@ It's pretty hard to tell if there's a significant difference between these two v
 
 However, this graph does reveal that some of the data points seem to be over 100 - which seems incorrect given this variable is supposed to represent % of GDP. Imports of goods and services can't make up more than 100% of total GDP, so we'll filter these results out. 
 
-Given we have a categorical predictor variable, and a quantitative outcome variable, and we're comparing two groups (Asia & Europe), we'll choose a T-test! T-tests compare the means of two samples, and like the ANOVA test, will help determine if there is a statistically significant difference between the two groups. 
+Given we have a categorical predictor variable, and a quantitative outcome variable, and we're comparing two groups (Asia & Europe), we'll have the choice between a T-test and a Wilcoxon rank sum test! Once again, as with ANOVA, a T-test assumes a normal distribution, so we'll test for that by visualizing it & running a Shapiro-Wilk test. 
 
-```{r gapminder_europe_asia_ttest, message = TRUE}
+
+```{r gapminder_europe_asia_dist}
+
 gapminder_europe_asia <- filter(gapminder_europe_asia, import <= 100)
 
-gapminder_europe_asia_ttest <-  format(t.test(import ~ continent, data = gapminder_europe_asia)$p.value, digits = 3)
+gapminder_europe_asia_shape <- gapminder_europe_asia %>%
+  ggplot(mapping = aes(x = import, fill = continent)) +
+  geom_density(alpha = .3) +
+  labs(
+    x = "Imports of goods and services (% of GDP)",
+    title = "Shape of Imports across Continents"
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
+
+gapminder_europe_asia_shape_plot <- ggplotly(gapminder_europe_asia_shape)
+
+gapminder_europe_asia_shape_plot %>% layout(legend = list(title = list(text = "Continents:")))
+
+shapiro_p <- format(shapiro.test(gapminder_europe_asia$import)$p.value, digits = 3)
 ```
 
-The p value is __`r gapminder_europe_asia_ttest`__, which is greater than 0.05 - meaning there's not statistical difference between these variables. 
+Overall, we can assume that this distribution isn't normally distributed by looking at this graph and the p_value of the Shapiro result (__`r shapiro_p`__), and so will instead opt for the Wilcoxon test. Wilcoxon will help determine if there is a statistically significant difference between the two groups. 
+
+```{r gapminder_europe_asia_wilcoxon}
+
+gapminder_europe_asia_wilcoxon <- format(wilcox.test(import ~ continent, data = gapminder_europe_asia)$p.value, digits = 3)
+```
+
+The p value is __`r gapminder_europe_asia_wilcoxon`__, which is greater than 0.05 - meaning there's not statistical difference between these variables. 
 
 ### Question 8. Highest Population
 __What is the country (or countries) that has the highest `'Population density (people per sq. km of land area)'` across all years?__
 
 We'll approach this by averaging the average population density across all the years, and then only displaying results over 1000 to avoid crowding the graph. 
 
-```{r gapminder_pop}
+```{r gapminder_pop, message=TRUE}
 
-#creating the tibble with mean population data
+# creating the tibble with population rankings per year
 gapminder_pop <- gapminder %>%
-  group_by(country)  %>%
-  summarise(pop_mean = mean(pop_density)) %>%
-  filter(pop_mean > 1000) 
+  select(country, Year, pop_density) %>%
+  group_by(Year) %>%
+  mutate(rank = dense_rank(desc(pop_density)))
 
-#graphing the population data
-gapminder_pop_graph <- gapminder_pop  %>%
-  ggplot(aes(x = country, y = pop_mean)) + 
-  geom_bar(stat = "identity", fill = "lightcoral") +
-  labs(x = "Country", y = "Population density (people per sq. km of land area)",
-       title = "Population density vs Country") +
-  theme(axis.title.y = element_text(size = 10, face = "italic"),
-        axis.title.x = element_text(size = 12, face = "italic"),
-        axis.text.x = element_text(angle = 50),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+# creating tibble with mean population rankings across all years
+gapminder_rank_mean <- gapminder_pop %>%
+  group_by(country) %>%
+  summarise(rank_mean = mean(rank)) %>%
+  arrange(rank_mean)
 
-ggplotly(gapminder_pop_graph)
+# displaying information in table
+datatable(gapminder_rank_mean, colnames = c("Country", "Mean Population Ranking across All Years "))
 
-#year with highest population mean
-max_pop_year <- gapminder_pop %>%
-  filter(pop_mean == max(pop_mean)) %>%
+# year with highest ranking
+max_pop_year <- gapminder_rank_mean %>%
+  filter(rank_mean == min(rank_mean, na.rm = TRUE)) %>%
   pull(country)
-
 ```
 
-Seems like the country with the highest average population density across time is __`r max_pop_year`__!
+Seems like the country/countries with the highest average population density across time are __`r max_pop_year`__!
 
 ### Question 9. Greatest Life Expectancy 
 __What country (or countries) has shown the greatest increase in `'Life expectancy at birth, total (years)'` since 1962?__
 
-We'll begin approaching this question by finding the country with biggest difference between life expectancy in 1962 & 2007. We'll only take countries with more than 27 years difference so we don't crowd the graph. 
+We'll begin approaching this question by finding the country with biggest difference between life expectancy in 1962 & 2007. You can see these results in the table below
 
 ```{r gapminder_life}
 
-#making tibble with life exp difference
+# making tibble with life exp difference
 gapminder_life <- gapminder %>%
   arrange(Year) %>%
-  group_by(country)  %>%
+  group_by(country) %>%
   summarise(diff = last(life_exp) - first(life_exp)) %>%
-  filter(diff > 27)
+  arrange(desc(diff))
 
-#graphing it
-gapminder_life_graph <- gapminder_life %>%
-  ggplot(aes(x = country, y = diff)) + 
-  geom_bar(stat = "identity", fill  = "lightcoral") +
-  labs(x = "Country", y = "Life expectancy at birth, total (years)",
-       title = "Life expectancy at birth vs Country") +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+datatable(gapminder_life, colnames = c("Country", "Increase in Life Expectancy in Years"))
 
-ggplotly(gapminder_life_graph)
-
-#country with greatest life_exp increase
+# country with greatest life_exp increase
 max_life_country <- gapminder_life %>%
-  filter(diff == max(diff)) %>%
+  filter(diff == max(diff, na.rm = TRUE)) %>%
   pull(country)
-
 ```
 
 Looks like __`r max_life_country`__ has the greatest increase in life expectancy! As an exercise, let's visualize its entire trajectory.  
  
 ```{r gapminder_max_life}
 
-title_str = paste("Life expectancy across time in the", toString(max_life_country), sep=" ")
+title_str <- paste("Life expectancy across time in the", toString(max_life_country), sep = " ")
 gapminder_max_life <- gapminder %>%
   filter(country == toString(max_life_country)) %>%
-  ggplot(aes(x = Year, y = life_exp)) + 
+  ggplot(aes(x = Year, y = life_exp)) +
   geom_line(color = "lightcoral") +
-  labs(x = "Year", y = "Life expectancy at birth, total (years)",
-       title = title_str ) +
-  theme(axis.title = element_text(size = 12, face = "italic"),
-        plot.title = element_text(face = "bold",
-                                  hjust = 0.5,
-                                  size = 14))
+  labs(
+    x = "Year", y = "Life expectancy at birth, total (years)",
+    title = title_str
+  ) +
+  theme(
+    axis.title = element_text(size = 12, face = "italic"),
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5,
+      size = 14
+    )
+  )
 
 ggplotly(gapminder_max_life)
+```
